@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Relatório · Pesquisa de Clima</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Marvel:wght@400;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%226%22 fill=%22%23004867%22/%3E%3Cpath d=%22M9 17l5 5 9-11%22 stroke=%22%2311A23A%22 stroke-width=%224%22 fill=%22none%22 stroke-linecap=%22round%22/%3E%3C/svg%3E">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div id="demoFaixa" class="demo-faixa oculto">Modo demonstração: senha <b id="senhaDemo"></b> · dados salvos apenas neste navegador.</div>
+<header class="topo">
+  <div class="topo-inner">
+    <img id="logo" class="logo" alt="Jaraguá Contabilidade">
+    <span class="topo-tag">Relatório · Pesquisa de Clima</span>
+  </div>
+</header>
+
+<main class="container largo">
+
+  <section id="telaLogin" class="login">
+    <div class="cartao destaque">
+      <h2>Acesso ao relatório</h2>
+      <p class="sub">Área restrita aos responsáveis pela pesquisa.</p>
+      <form id="formLogin">
+        <label for="senha"><b>Senha</b></label>
+        <input type="password" id="senha" autocomplete="current-password" required>
+        <div id="erroLogin" class="alerta erro oculto" role="alert"></div>
+        <button class="btn btn-primario" type="submit" style="width:100%;justify-content:center">Entrar</button>
+      </form>
+    </div>
+  </section>
+
+  <section id="telaRel" class="oculto">
+    <div class="rel-cab">
+      <div>
+        <h1>Relatório da Pesquisa de Clima</h1>
+        <div class="sub" id="periodo" style="margin:0"></div>
+      </div>
+      <div class="nao-imprimir" style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-sec btn-mini" id="btnAtualizar">Atualizar</button>
+        <button class="btn btn-sec btn-mini" id="btnCSV">Exportar planilha (CSV)</button>
+        <button class="btn btn-primario btn-mini" id="btnImprimir">Imprimir / PDF</button>
+      </div>
+    </div>
+
+    <div id="avisoAnon"></div>
+
+    <nav class="nav-rel">
+      <a href="#sec-visao">Visão geral</a>
+      <a href="#sec-prioridades">Prioridades</a>
+      <a href="#sec-plano">Plano de ação</a>
+      <a href="#sec-dist">Por afirmação</a>
+      <a href="#sec-temas">Temas citados</a>
+      <a href="#sec-abertas">Respostas abertas</a>
+      <a href="#sec-gerenciar" class="nao-imprimir">Gerenciar</a>
+    </nav>
+
+    <div id="conteudo"></div>
+  </section>
+</main>
+
+<div id="tooltip" class="tooltip oculto" role="tooltip"></div>
+
+<script src="config.js"></script>
+<script src="assets/app.js"></script>
+<script>
+(function(){
+  "use strict";
+  const { PERGUNTAS, ABERTAS, ESCALA, TEMAS, temasDoTexto, normaliza, Trava, API, esc, novoId, hoje } = window.Clima;
+  const $ = id => document.getElementById(id);
+  const CORES = ["var(--e1)","var(--e2)","var(--e3)","var(--e4)","var(--e5)"];
+  const CLAROS = [false,false,true,false,false];
+  let senha = "", dados = [];
+
+  const logo = $("logo");
+  logo.src = CONFIG.LOGO;
+  logo.onerror = () => logo.replaceWith(Object.assign(document.createElement("span"), {className:"logo-texto", textContent: CONFIG.EMPRESA}));
+  if (API.demo){ $("demoFaixa").classList.remove("oculto"); $("senhaDemo").textContent = CONFIG.SENHA_DEMO; }
+
+  const ICONES = {
+    critico: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 7v6M12 17h.01"/></svg>',
+    atencao: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>',
+    forte: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>'
+  };
+  const NOME_STATUS = { critico:"Crítico", atencao:"Atenção", forte:"Ponto forte" };
+  const badge = s => `<span class="status ${s}">${ICONES[s]}${NOME_STATUS[s]}</span>`;
+  const fmt = (n, d=1) => Number(n).toLocaleString("pt-BR", {minimumFractionDigits:d, maximumFractionDigits:d});
+  const pct = n => Math.round(n) + "%";
+  const dataBR = s => s ? s.split("-").reverse().join("/") : "";
+
+  /* ---------------- Login ---------------- */
+  $("formLogin").addEventListener("submit", async e => {
+    e.preventDefault();
+    senha = $("senha").value;
+    await carregar(true);
+  });
+  try { const s = sessionStorage.getItem("clima_senha"); if (s){ senha = s; carregar(false); } } catch(e){}
+
+  async function carregar(doLogin){
+    const btn = document.querySelector("#formLogin button");
+    if (doLogin){ btn.disabled = true; btn.textContent = "Verificando..."; }
+    const r = await API.chamar({ acao:"listar", senha });
+    if (doLogin){ btn.disabled = false; btn.textContent = "Entrar"; }
+    if (!r || !r.ok){
+      try { sessionStorage.removeItem("clima_senha"); } catch(e){}
+      $("telaLogin").classList.remove("oculto"); $("telaRel").classList.add("oculto");
+      if (doLogin){ const el = $("erroLogin"); el.textContent = (r && r.erro) || "Falha ao acessar."; el.classList.remove("oculto"); }
+      return;
+    }
+    try { sessionStorage.setItem("clima_senha", senha); } catch(e){}
+    dados = (r.respostas || []).map(x => { const o = Object.assign({}, x); PERGUNTAS.forEach(p => o[p.id] = Number(o[p.id])); return o; })
+                               .filter(x => PERGUNTAS.every(p => x[p.id] >= 1 && x[p.id] <= 5));
+    $("telaLogin").classList.add("oculto"); $("telaRel").classList.remove("oculto");
+    render();
+  }
+
+  /* ---------------- Cálculos ---------------- */
+  function statusDe(media, fav){
+    if (media < 3 || fav < 40) return "critico";
+    if (media < 4 || fav < 70) return "atencao";
+    return "forte";
+  }
+  function calcular(){
+    const n = dados.length;
+    const porPerg = PERGUNTAS.map(p => {
+      const cont = [0,0,0,0,0];
+      dados.forEach(r => cont[r[p.id]-1]++);
+      const soma = cont.reduce((a,c,i) => a + c*(i+1), 0);
+      const media = n ? soma/n : 0;
+      const fav = n ? (cont[3]+cont[4])/n*100 : 0;
+      const neu = n ? cont[2]/n*100 : 0;
+      const desf = n ? (cont[0]+cont[1])/n*100 : 0;
+      return { p, cont, media, fav, neu, desf, status: statusDe(media, fav) };
+    });
+    // Temas nas respostas abertas
+    const temas = {}; Object.keys(TEMAS).forEach(k => temas[k] = { pessoas:0, citacoes:[] });
+    let comTema = 0;
+    dados.forEach(r => {
+      const vistos = new Set();
+      ABERTAS.forEach(a => {
+        const txt = r[a.id] || "";
+        temasDoTexto(txt).forEach(t => { vistos.add(t); temas[t].citacoes.push({ txt, campo:a.curto }); });
+      });
+      vistos.forEach(t => temas[t].pessoas++);
+      if (vistos.size) comTema++;
+    });
+    // Prioridade: 70% nota (quanto menor, mais prioritário) + 30% frequência nos comentários
+    porPerg.forEach(x => {
+      const share = n ? temas[x.p.dim].pessoas / n : 0;
+      x.mencoes = temas[x.p.dim].pessoas;
+      x.prioridade = ((5 - x.media)/4)*0.7 + share*0.3;
+    });
+    const todas = dados.length * PERGUNTAS.length;
+    let favTot = 0, somaTot = 0;
+    porPerg.forEach(x => { favTot += x.cont[3]+x.cont[4]; somaTot += x.media * n; });
+    const datas = dados.map(r => r.data).filter(Boolean).sort();
+    return {
+      n, porPerg, temas, comTema,
+      favGeral: todas ? favTot/todas*100 : 0,
+      mediaGeral: todas ? somaTot/todas : 0,
+      motivacao: porPerg.find(x => x.p.id === "q8"),
+      ini: datas[0], fim: datas[datas.length-1]
+    };
+  }
+
+  const STOP = new Set(normaliza("a o e é de da do das dos em no na nos nas um uma uns umas que se por para pra com sem mais muito muita muitos muitas como mas ou ao aos à às eu me meu minha meus minhas nós nos nosso nossa nossos nossas você voce vocês ele ela eles elas isso isto esse essa este esta aquilo seu sua seus suas lhe já ja não nao sim tem ter têm temos ser são sao está esta estão estao estar foi era pelo pela pelos pelas quando onde qual quais quem porque pois também tambem só so até ate então entao ainda sobre entre cada todo toda todos todas algum alguma alguns nada coisa coisas hoje acho vez vezes bem melhor melhorar seria poderia gostaria fazer faz feito ficar fica forma parte gente pessoas pessoa trabalho trabalhar empresa dia dias outro outra outros outras mesmo mesma tipo assim aqui lá la nenhum nenhuma declarar acredito sempre nunca vai vão vao há ha deve devem possa pode podem").split(" "));
+  function palavrasFrequentes(){
+    const c = {};
+    dados.forEach(r => ABERTAS.forEach(a => {
+      const vistos = new Set();
+      normaliza(r[a.id]).replace(/[^a-z0-9\s-]/g," ").split(/\s+/).forEach(w => {
+        if (w.length < 4 || STOP.has(w) || vistos.has(w)) return;
+        vistos.add(w); c[w] = (c[w]||0) + 1;
+      });
+    }));
+    return Object.entries(c).filter(([,v]) => v >= 2).sort((a,b) => b[1]-a[1]).slice(0,24);
+  }
+
+  /* ---------------- Renderização ---------------- */
+  function render(){
+    const R = calcular();
+    $("periodo").textContent = R.n
+      ? `${R.n} ${R.n===1?"resposta":"respostas"} · ${R.ini===R.fim ? dataBR(R.ini) : dataBR(R.ini)+" a "+dataBR(R.fim)}`
+      : "Nenhuma resposta ainda";
+    $("avisoAnon").innerHTML = (R.n > 0 && R.n < 5)
+      ? `<div class="alerta aviso">${ICONES.atencao}<span><b>Poucas respostas (${R.n}).</b> Com menos de 5 participantes, os resultados têm pouca representatividade e as respostas abertas podem permitir identificar quem respondeu. Compartilhe os resultados com cautela.</span></div>` : "";
+
+    if (!R.n){
+      $("conteudo").innerHTML = `<div class="cartao vazio"><h2>Ainda não há respostas</h2><p>Compartilhe o link da pesquisa com a equipe. Os resultados aparecerão aqui automaticamente.</p>
+        <p><b>Link da pesquisa:</b> <a href="index.html" target="_blank">${esc(location.href.replace(/relatorio\.html.*$/,""))}</a></p></div>` + secGerenciar(R);
+      ligarGerenciar(); return;
+    }
+
+    const ord = [...R.porPerg].sort((a,b) => b.prioridade - a.prioridade);
+    const forte = [...R.porPerg].sort((a,b) => b.media - a.media)[0];
+    const fraco = [...R.porPerg].sort((a,b) => a.media - b.media)[0];
+
+    let h = "";
+
+    /* Visão geral */
+    h += `<section id="sec-visao">
+      <div class="kpis">
+        <div class="kpi"><div class="k-rot">Participantes</div><div class="k-val">${R.n}</div><div class="k-sub">respostas recebidas</div></div>
+        <div class="kpi"><div class="k-rot">Índice de favorabilidade</div><div class="k-val">${pct(R.favGeral)}</div><div class="k-sub">das avaliações foram 4 ou 5</div></div>
+        <div class="kpi"><div class="k-rot">Nota média geral</div><div class="k-val">${fmt(R.mediaGeral)}<small> / 5</small></div><div class="k-sub">${badge(statusDe(R.mediaGeral, R.favGeral))}</div></div>
+        <div class="kpi"><div class="k-rot">Motivação</div><div class="k-val">${pct(R.motivacao.fav)}</div><div class="k-sub">se sentem motivados(as)</div></div>
+      </div>
+      <div class="cartao">
+        <h3>Resumo executivo</h3>
+        <p style="margin:0">${resumo(R, ord, forte, fraco)}</p>
+      </div>
+    </section>`;
+
+    /* Prioridades */
+    h += `<section id="sec-prioridades" class="cartao">
+      <h2>Prioridades de melhoria</h2>
+      <p class="sub">Ranking das dimensões que mais precisam de atenção. Combina a nota média (70%) com a frequência com que o tema aparece nos comentários (30%).</p>
+      <div class="tabela-rolagem"><table>
+        <thead><tr><th>#</th><th>Dimensão</th><th class="num">Média</th><th class="num">Favorável</th><th class="num">Desfavorável</th><th class="num">Citada nos comentários</th><th>Situação</th></tr></thead>
+        <tbody>${ord.map((x,i) => `<tr>
+          <td><span class="rank">${i+1}</span></td>
+          <td><b>${esc(x.p.dim)}</b><div class="pequeno">${esc(x.p.texto)}</div></td>
+          <td class="num"><b>${fmt(x.media)}</b></td>
+          <td class="num">${pct(x.fav)}</td>
+          <td class="num">${pct(x.desf)}</td>
+          <td class="num">${x.mencoes} ${x.mencoes===1?"pessoa":"pessoas"}</td>
+          <td>${badge(x.status)}</td></tr>`).join("")}</tbody>
+      </table></div>
+      <p class="pequeno" style="margin-top:12px">Critérios: <b>Crítico</b> = média abaixo de 3,0 ou menos de 40% favorável · <b>Atenção</b> = média abaixo de 4,0 ou menos de 70% favorável · <b>Ponto forte</b> = demais casos.</p>
+    </section>`;
+
+    /* Plano de ação */
+    let alvo = ord.filter(x => x.status !== "forte");
+    const semProblemas = !alvo.length;
+    if (semProblemas) alvo = ord.slice(0,2);
+    h += `<section id="sec-plano" class="cartao">
+      <h2>Plano de ação sugerido</h2>
+      <p class="sub">${semProblemas ? "Todas as dimensões estão como ponto forte. Abaixo, as duas com menor nota relativa, para manter a evolução." : "Sugestões de ações para as dimensões que precisam de melhoria, em ordem de prioridade, com trechos dos comentários relacionados."}</p>
+      ${alvo.map((x,i) => {
+        const cit = R.temas[x.p.dim].citacoes;
+        const unicas = [...new Map(cit.map(c => [c.txt, c])).values()].slice(0,3);
+        return `<div class="plano ${x.status}">
+          <div class="plano-cab"><h3>${i+1}. ${esc(x.p.dim)}</h3>${badge(x.status)}</div>
+          <div class="met">Média <b>${fmt(x.media)}</b> · ${pct(x.fav)} favorável · ${pct(x.desf)} desfavorável · citada por ${x.mencoes} ${x.mencoes===1?"pessoa":"pessoas"} nos comentários</div>
+          <ul>${x.p.acoes.map(a => `<li>${esc(a)}</li>`).join("")}</ul>
+          ${unicas.length ? `<div style="margin-top:10px"><b style="font-size:.9rem">O que a equipe disse:</b>${unicas.map(c => `<div class="citacao">"${esc(c.txt.length > 280 ? c.txt.slice(0,280)+"…" : c.txt)}"</div>`).join("")}</div>` : ""}
+        </div>`;
+      }).join("")}
+      <p class="pequeno">Recomendação: apresente os resultados à equipe, escolha de 2 a 3 ações prioritárias com responsável e prazo, e repita a pesquisa em 6 meses para medir a evolução.</p>
+    </section>`;
+
+    /* Distribuição */
+    h += `<section id="sec-dist" class="cartao">
+      <h2>Resultado por afirmação</h2>
+      <p class="sub">Distribuição das respostas de 1 a 5. Passe o mouse sobre as barras para ver os números.</p>
+      <div class="legenda">${ESCALA.map((t,i) => `<span><i style="background:${CORES[i]}"></i>${i+1} · ${t}</span>`).join("")}</div>
+      ${R.porPerg.map((x,i) => `
+        <div class="dist-linha">
+          <div class="dist-txt"><span><span class="d">${i+1}. ${esc(x.p.dim)}</span> <span class="q">— ${esc(x.p.texto)}</span></span>${badge(x.status)}</div>
+          <div class="barra" role="img" aria-label="${esc(x.p.dim)}: ${x.cont.map((c,k)=>`${ESCALA[k]} ${c}`).join(", ")}">
+            ${x.cont.map((c,k) => c ? `<div class="seg ${CLAROS[k]?"claro":""}" style="flex:${c};background:${CORES[k]}" data-tip="<b>${esc(ESCALA[k])}</b><br>${c} ${c===1?"resposta":"respostas"} · ${pct(c/R.n*100)}">${c/R.n >= .08 ? pct(c/R.n*100) : ""}</div>` : "").join("")}
+          </div>
+          <div class="media-box"><b>${fmt(x.media)}</b><span>média</span></div>
+        </div>`).join("")}
+      <details style="margin-top:14px"><summary class="pequeno" style="cursor:pointer">Ver tabela de dados</summary>
+        <div class="tabela-rolagem"><table style="margin-top:10px"><thead><tr><th>Dimensão</th>${ESCALA.map((t,i)=>`<th class="num">${i+1}</th>`).join("")}<th class="num">Média</th></tr></thead>
+        <tbody>${R.porPerg.map(x => `<tr><td>${esc(x.p.dim)}</td>${x.cont.map(c=>`<td class="num">${c}</td>`).join("")}<td class="num"><b>${fmt(x.media)}</b></td></tr>`).join("")}</tbody></table></div>
+      </details>
+    </section>`;
+
+    /* Temas */
+    const temasOrd = Object.entries(R.temas).sort((a,b) => b[1].pessoas - a[1].pessoas);
+    const maxT = Math.max(1, ...temasOrd.map(([,v]) => v.pessoas));
+    const pal = palavrasFrequentes();
+    h += `<section id="sec-temas" class="grid2">
+      <div class="cartao">
+        <h2>Temas citados nos comentários</h2>
+        <p class="sub">Quantas pessoas mencionaram cada tema nas perguntas abertas (classificação automática por palavras-chave).</p>
+        ${temasOrd.map(([k,v]) => `<div class="hbar"><span>${esc(k)}</span><div class="trilho"><div class="preench" style="width:${v.pessoas/maxT*100}%" data-tip="<b>${esc(k)}</b><br>${v.pessoas} de ${R.n} pessoas · ${pct(v.pessoas/R.n*100)}"></div></div><span class="v">${v.pessoas}</span></div>`).join("")}
+        <p class="pequeno">${R.n - R.comTema} ${R.n - R.comTema === 1 ? "resposta não se encaixou" : "respostas não se encaixaram"} em nenhum tema — leia-as na seção de respostas abertas.</p>
+      </div>
+      <div class="cartao">
+        <h2>Palavras mais frequentes</h2>
+        <p class="sub">Termos que aparecem em pelo menos 2 respostas.</p>
+        ${pal.length ? `<div class="palavras">${pal.map(([w,c]) => `<span>${esc(w)}<em>${c}</em></span>`).join("")}</div>` : `<p class="pequeno">Ainda não há termos repetidos suficientes.</p>`}
+      </div>
+    </section>`;
+
+    /* Respostas abertas */
+    h += `<section id="sec-abertas" class="cartao">
+      <h2>Respostas abertas</h2>
+      <p class="sub">Leia todos os comentários. Use os filtros para focar em um tema ou buscar uma palavra.</p>
+      <div class="filtros nao-imprimir">
+        <select id="fCampo"><option value="">Todas as perguntas</option>${ABERTAS.map(a => `<option value="${a.id}">${esc(a.curto)}</option>`).join("")}</select>
+        <select id="fTema"><option value="">Todos os temas</option>${Object.keys(TEMAS).map(k => `<option>${esc(k)}</option>`).join("")}<option value="__sem">Sem tema identificado</option></select>
+        <input type="search" id="fBusca" placeholder="Buscar palavra...">
+      </div>
+      <div id="listaAbertas"></div>
+    </section>`;
+
+    h += secGerenciar(R);
+    $("conteudo").innerHTML = h;
+
+    ["fCampo","fTema","fBusca"].forEach(id => $(id).addEventListener("input", listarAbertas));
+    listarAbertas();
+    ligarGerenciar();
+  }
+
+  function resumo(R, ord, forte, fraco){
+    const crit = R.porPerg.filter(x => x.status === "critico").map(x => x.p.dim);
+    const aten = R.porPerg.filter(x => x.status === "atencao").map(x => x.p.dim);
+    const lista = a => a.length <= 1 ? a.join("") : a.slice(0,-1).join(", ") + " e " + a[a.length-1];
+    let s = `Com ${R.n} ${R.n===1?"participante":"participantes"}, o índice geral de favorabilidade é de <b>${pct(R.favGeral)}</b> (média ${fmt(R.mediaGeral)} de 5). `;
+    s += `O melhor resultado está em <b>${esc(forte.p.dim)}</b> (média ${fmt(forte.media)}) e o mais baixo em <b>${esc(fraco.p.dim)}</b> (média ${fmt(fraco.media)}). `;
+    if (crit.length) s += `Situação crítica em: <b>${esc(lista(crit))}</b>. `;
+    if (aten.length) s += `Pedem atenção: ${esc(lista(aten))}. `;
+    if (!crit.length && !aten.length) s += `Todas as dimensões estão em patamar positivo. `;
+    s += `A prioridade número 1 de melhoria é <b>${esc(ord[0].p.dim)}</b>.`;
+    return s;
+  }
+
+  function listarAbertas(){
+    const campo = $("fCampo").value, tema = $("fTema").value, busca = normaliza($("fBusca").value.trim());
+    const itens = [];
+    dados.forEach(r => ABERTAS.forEach(a => {
+      if (campo && a.id !== campo) return;
+      const txt = r[a.id] || ""; const ts = temasDoTexto(txt);
+      if (tema === "__sem" && ts.length) return;
+      if (tema && tema !== "__sem" && !ts.includes(tema)) return;
+      if (busca && !normaliza(txt).includes(busca)) return;
+      itens.push({ r, a, txt, ts });
+    }));
+    $("listaAbertas").innerHTML = itens.length
+      ? `<p class="pequeno">${itens.length} ${itens.length===1?"comentário":"comentários"}</p>` + itens.map(i => `
+        <div class="resp-aberta">
+          <div class="meta"><b>${esc(i.a.curto)}</b>${i.ts.map(t => `<span class="tag">${esc(t)}</span>`).join("")}</div>
+          <div>${esc(i.txt).replace(/\n/g,"<br>")}</div>
+        </div>`).join("")
+      : `<p class="vazio">Nenhum comentário encontrado com esses filtros.</p>`;
+  }
+
+  /* ---------------- Gerenciar ---------------- */
+  function secGerenciar(R){
+    return `<section id="sec-gerenciar" class="cartao nao-imprimir">
+      <h2>Gerenciar respostas</h2>
+      <p class="sub">Use para remover respostas de teste antes de liberar a pesquisa para a equipe.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+        <button class="btn btn-sec btn-mini" id="btnLiberar">Liberar este dispositivo para responder de novo</button>
+        <a class="btn btn-sec btn-mini" href="index.html" target="_blank">Abrir a pesquisa</a>
+        ${API.demo ? `<button class="btn btn-sec btn-mini" id="btnExemplo">Inserir 15 respostas de exemplo</button>` : ""}
+        ${R.n ? `<button class="btn btn-perigo btn-mini" id="btnLimpar">Excluir todas as respostas</button>` : ""}
+      </div>
+      <div id="msgGer"></div>
+      ${R.n ? `<div class="tabela-rolagem"><table>
+        <thead><tr><th>Data</th>${PERGUNTAS.map((p,i) => `<th class="num" title="${esc(p.dim)}">${i+1}</th>`).join("")}<th>${esc(ABERTAS[0].curto)}</th><th></th></tr></thead>
+        <tbody>${[...dados].reverse().map(r => `<tr>
+          <td style="white-space:nowrap">${dataBR(r.data)}</td>
+          ${PERGUNTAS.map(p => `<td class="num">${r[p.id]}</td>`).join("")}
+          <td class="pequeno" style="max-width:320px">${esc((r.t1||"").slice(0,90))}${(r.t1||"").length>90?"…":""}</td>
+          <td><button class="btn btn-perigo btn-mini" data-excluir="${esc(r.id)}">Excluir</button></td></tr>`).join("")}</tbody>
+      </table></div>
+      <p class="pequeno">Colunas 1 a 8: ${PERGUNTAS.map((p,i) => `${i+1} = ${esc(p.dim)}`).join(" · ")}</p>` : ""}
+    </section>`;
+  }
+
+  function msg(t, tipo="info"){ $("msgGer").innerHTML = `<div class="alerta ${tipo}">${esc(t)}</div>`; }
+
+  function ligarGerenciar(){
+    $("btnLiberar").onclick = () => { Trava.liberar(); msg("Este dispositivo foi liberado e pode responder a pesquisa novamente (útil para testes)."); };
+    const bl = $("btnLimpar");
+    if (bl) bl.onclick = async () => {
+      if (prompt(`Isso apaga DEFINITIVAMENTE todas as ${dados.length} respostas.\nDigite EXCLUIR para confirmar:`) !== "EXCLUIR") return;
+      const r = await API.chamar({ acao:"limparTudo", senha });
+      if (r.ok) carregar(false); else msg(r.erro || "Falha ao excluir.", "erro");
+    };
+    const be = $("btnExemplo");
+    if (be) be.onclick = () => { API.demoInserir(exemplos(15)); carregar(false); };
+    document.querySelectorAll("[data-excluir]").forEach(b => b.onclick = async () => {
+      if (!confirm("Excluir esta resposta definitivamente?")) return;
+      b.disabled = true; b.textContent = "...";
+      const r = await API.chamar({ acao:"excluir", id:b.dataset.excluir, senha });
+      if (r.ok) carregar(false); else { msg(r.erro || "Falha ao excluir.", "erro"); b.disabled = false; b.textContent = "Excluir"; }
+    });
+  }
+
+  $("btnAtualizar").onclick = () => carregar(false);
+  $("btnImprimir").onclick = () => window.print();
+  $("btnCSV").onclick = () => {
+    const cab = ["id","data", ...PERGUNTAS.map((p,i) => `${i+1}. ${p.dim}`), ...ABERTAS.map(a => a.curto)];
+    const q = v => `"${String(v==null?"":v).replace(/"/g,'""')}"`;
+    const linhas = [cab.map(q).join(";"), ...dados.map(r => [r.id, dataBR(r.data), ...PERGUNTAS.map(p => r[p.id]), ...ABERTAS.map(a => r[a.id])].map(q).join(";"))];
+    const blob = new Blob(["﻿" + linhas.join("\r\n")], { type:"text/csv;charset=utf-8" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `pesquisa-clima-${CONFIG.EDICAO}.csv`; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  };
+
+  /* Tooltip */
+  const tip = $("tooltip");
+  document.addEventListener("mousemove", e => {
+    const el = e.target.closest("[data-tip]");
+    if (!el){ tip.classList.add("oculto"); return; }
+    tip.innerHTML = el.dataset.tip; tip.classList.remove("oculto");
+    const w = tip.offsetWidth, x = Math.min(e.clientX + 14, innerWidth - w - 10);
+    tip.style.left = x + "px"; tip.style.top = (e.clientY + 16) + "px";
+  });
+
+  /* Dados de exemplo (somente modo demonstração) */
+  function exemplos(qtd){
+    const perfis = { q1:4.1, q2:3.0, q3:3.6, q4:2.7, q5:4.3, q6:2.5, q7:2.9, q8:3.4 };
+    const t1 = ["Contratar mais uma pessoa para o setor fiscal, o volume no fechamento está muito alto.","Trocar os computadores, o sistema fica lento e trava várias vezes ao dia.","Ter uma reunião mensal com todos para saber o que está acontecendo na empresa.","Mais reconhecimento pelo esforço, hoje só ouvimos quando algo dá errado.","Melhorar o ar-condicionado da sala, faz muito calor à tarde.","Definir melhor quem é responsável por cada tarefa, às vezes duas pessoas fazem a mesma coisa.","Um plano de carreira claro, com critérios para aumento de salário.","Mais flexibilidade de horário.","Reduzir a quantidade de demandas urgentes de última hora.","Treinamentos sobre as mudanças na legislação."];
+    const t2 = ["Sobrecarga no fechamento do mês, fazemos muitas horas extras.","Informações importantes chegam pelos colegas antes de chegar pela liderança.","Nada a declarar.","Internet cai com frequência e atrasa as entregas.","Sinto falta de feedback do gestor sobre o meu trabalho.","Falta de padrão nos processos entre os setores.","Às vezes o clima fica tenso entre algumas pessoas da equipe.","Não vejo perspectiva de crescimento.","Prazos apertados demais para o volume de clientes.","A cadeira é desconfortável e tenho dor nas costas."];
+    const lista = [];
+    for (let i = 0; i < qtd; i++){
+      const r = { id: novoId(), data: hoje() };
+      Object.entries(perfis).forEach(([k,m]) => { r[k] = Math.max(1, Math.min(5, Math.round(m + (Math.random()*2.4 - 1.2)))); });
+      r.t1 = t1[i % t1.length]; r.t2 = t2[(i*3) % t2.length];
+      lista.push(r);
+    }
+    return lista;
+  }
+})();
+</script>
+</body>
+</html>

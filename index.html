@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Pesquisa de Clima Organizacional</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Marvel:wght@400;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%226%22 fill=%22%23004867%22/%3E%3Cpath d=%22M9 17l5 5 9-11%22 stroke=%22%2311A23A%22 stroke-width=%224%22 fill=%22none%22 stroke-linecap=%22round%22/%3E%3C/svg%3E">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div id="demoFaixa" class="demo-faixa oculto">Modo demonstração: as respostas ficam salvas apenas neste navegador.</div>
+<header class="topo">
+  <div class="topo-inner">
+    <img id="logo" class="logo" alt="Jaraguá Contabilidade">
+    <span class="topo-tag">Pesquisa de Clima Organizacional</span>
+  </div>
+  <div class="progresso" aria-hidden="true"><span id="barraProg"></span></div>
+</header>
+
+<main class="container">
+
+  <!-- INTRODUÇÃO -->
+  <section id="telaIntro">
+    <div class="cartao destaque">
+      <h1>Pesquisa de Clima Organizacional</h1>
+      <p class="sub">Sua opinião é fundamental para construirmos um ambiente de trabalho melhor para todos.</p>
+      <p>Esta pesquisa tem o objetivo de entender como você se sente em relação à sua rotina, às condições de trabalho, à liderança e ao relacionamento com a equipe. Os resultados serão analisados em conjunto e usados para definir ações de melhoria.</p>
+      <div class="garantias">
+        <div class="garantia">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <strong>100% anônima</strong>
+          <span>Não pedimos nome, e-mail, cargo ou qualquer dado pessoal.</span>
+        </div>
+        <div class="garantia">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+          <strong>Cerca de 5 minutos</strong>
+          <span>8 afirmações rápidas e 2 perguntas abertas.</span>
+        </div>
+        <div class="garantia">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          <strong>Uma resposta</strong>
+          <span>Cada pessoa responde uma única vez. Seja sincero(a).</span>
+        </div>
+      </div>
+      <p class="pequeno">Não existem respostas certas ou erradas. As respostas são vistas apenas de forma agregada e o horário de envio não é registrado.</p>
+      <div class="acoes"><span></span><button class="btn btn-primario" id="btnIniciar">Iniciar pesquisa
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button></div>
+    </div>
+  </section>
+
+  <!-- PARTE 1 -->
+  <section id="telaParte1" class="oculto">
+    <div class="etapa-cab">
+      <div>
+        <div class="rotulo">Parte 1 de 2</div>
+        <h2>Avalie as afirmações</h2>
+        <p class="sub" style="margin:0">Indique o quanto você concorda com cada afirmação, de 1 (discordo totalmente) a 5 (concordo totalmente).</p>
+      </div>
+    </div>
+    <form id="formLikert" novalidate></form>
+    <div id="erro1" class="alerta erro oculto" role="alert"></div>
+    <div class="acoes">
+      <button class="btn btn-sec" id="btnVoltar0" type="button">Voltar</button>
+      <button class="btn btn-primario" id="btnAvancar" type="button">Continuar
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+    </div>
+  </section>
+
+  <!-- PARTE 2 -->
+  <section id="telaParte2" class="oculto">
+    <div class="etapa-cab">
+      <div>
+        <div class="rotulo">Parte 2 de 2</div>
+        <h2>Conte para nós</h2>
+        <p class="sub" style="margin:0">Respostas sinceras e específicas ajudam a definir ações concretas. Evite citar nomes de pessoas.</p>
+      </div>
+    </div>
+    <form id="formAbertas" novalidate></form>
+    <div id="erro2" class="alerta erro oculto" role="alert"></div>
+    <div class="acoes">
+      <button class="btn btn-sec" id="btnVoltar1" type="button">Voltar</button>
+      <button class="btn btn-verde" id="btnEnviar" type="button">Enviar respostas</button>
+    </div>
+  </section>
+
+  <!-- OBRIGADO -->
+  <section id="telaFim" class="oculto">
+    <div class="cartao final">
+      <div class="icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>
+      <h1>Obrigado pela sua participação!</h1>
+      <p class="sub">Suas respostas foram registradas de forma anônima.</p>
+      <p>Os resultados serão analisados e as ações de melhoria serão compartilhadas com a equipe.</p>
+    </div>
+  </section>
+
+  <!-- JÁ RESPONDEU -->
+  <section id="telaJa" class="oculto">
+    <div class="cartao final">
+      <div class="icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>
+      <h1>Você já participou desta pesquisa</h1>
+      <p class="sub">Identificamos que uma resposta já foi enviada a partir deste dispositivo.</p>
+      <p>Para garantir resultados justos, cada pessoa pode responder apenas uma vez. Obrigado pela colaboração!</p>
+    </div>
+  </section>
+
+</main>
+<footer class="rodape" id="rodape"></footer>
+
+<script src="config.js"></script>
+<script src="assets/app.js"></script>
+<script>
+(function(){
+  "use strict";
+  const { PERGUNTAS, ABERTAS, ESCALA, Trava, API, esc } = window.Clima;
+  const $ = id => document.getElementById(id);
+  const telas = ["telaIntro","telaParte1","telaParte2","telaFim","telaJa"];
+  const resposta = {};
+
+  const logo = $("logo");
+  logo.src = CONFIG.LOGO;
+  logo.onerror = () => { logo.replaceWith(Object.assign(document.createElement("span"), {className:"logo-texto", textContent: CONFIG.EMPRESA})); };
+  $("rodape").textContent = CONFIG.EMPRESA + " · Pesquisa de Clima Organizacional";
+  if (API.demo) $("demoFaixa").classList.remove("oculto");
+
+  function mostrar(id){
+    telas.forEach(t => $(t).classList.toggle("oculto", t !== id));
+    window.scrollTo({top:0, behavior:"smooth"});
+    atualizarProgresso(id);
+  }
+  function atualizarProgresso(tela){
+    const total = PERGUNTAS.length + ABERTAS.length;
+    let feitas = PERGUNTAS.filter(p => resposta[p.id]).length + ABERTAS.filter(a => (resposta[a.id]||"").trim()).length;
+    if (tela === "telaIntro") feitas = 0;
+    if (tela === "telaFim" || tela === "telaJa") feitas = total;
+    $("barraProg").style.width = (feitas/total*100) + "%";
+  }
+
+  // Monta a parte 1
+  $("formLikert").innerHTML = PERGUNTAS.map((p,i) => `
+    <div class="pergunta" id="box_${p.id}">
+      <div class="num">Afirmação ${i+1} de ${PERGUNTAS.length}</div>
+      <div class="enunciado" id="lbl_${p.id}">${esc(p.texto)}<span class="obrig" aria-hidden="true">*</span></div>
+      <fieldset class="likert" aria-labelledby="lbl_${p.id}">
+        <legend>${esc(p.texto)}</legend>
+        ${ESCALA.map((t,k) => `
+          <label><input type="radio" name="${p.id}" value="${k+1}" required>
+            <span class="n">${k+1}</span><span class="t">${t}</span></label>`).join("")}
+      </fieldset>
+    </div>`).join("");
+
+  // Monta a parte 2
+  $("formAbertas").innerHTML = ABERTAS.map((a,i) => `
+    <div class="pergunta" id="box_${a.id}">
+      <div class="num">Pergunta ${i+1} de ${ABERTAS.length}</div>
+      <label class="enunciado" for="${a.id}" style="display:block">${a.texto}<span class="obrig" aria-hidden="true">*</span></label>
+      <textarea id="${a.id}" name="${a.id}" maxlength="3000" placeholder="Escreva sua resposta aqui..." required></textarea>
+      <div class="contador"><span id="cnt_${a.id}">0</span>/3000</div>
+    </div>`).join("");
+
+  $("formLikert").addEventListener("change", e => {
+    if (e.target.type !== "radio") return;
+    resposta[e.target.name] = Number(e.target.value);
+    const box = $("box_" + e.target.name);
+    box.classList.add("respondida"); box.classList.remove("erro");
+    atualizarProgresso("telaParte1");
+  });
+  ABERTAS.forEach(a => {
+    $(a.id).addEventListener("input", e => {
+      resposta[a.id] = e.target.value;
+      $("cnt_" + a.id).textContent = e.target.value.length;
+      $("box_" + a.id).classList.toggle("respondida", !!e.target.value.trim());
+      $("box_" + a.id).classList.remove("erro");
+      atualizarProgresso("telaParte2");
+    });
+  });
+
+  function erro(el, msg){
+    el.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><span>${esc(msg)}</span>`;
+    el.classList.remove("oculto");
+  }
+
+  $("btnIniciar").onclick = () => { if (Trava.ativa()) return mostrar("telaJa"); mostrar("telaParte1"); };
+  $("btnVoltar0").onclick = () => mostrar("telaIntro");
+  $("btnVoltar1").onclick = () => mostrar("telaParte1");
+
+  $("btnAvancar").onclick = () => {
+    const faltam = PERGUNTAS.filter(p => !resposta[p.id]);
+    faltam.forEach(p => $("box_"+p.id).classList.add("erro"));
+    if (faltam.length){
+      erro($("erro1"), faltam.length === 1 ? "Falta responder 1 afirmação (destacada em vermelho)." : `Faltam responder ${faltam.length} afirmações (destacadas em vermelho).`);
+      $("box_"+faltam[0].id).scrollIntoView({behavior:"smooth", block:"center"});
+      return;
+    }
+    $("erro1").classList.add("oculto");
+    mostrar("telaParte2");
+  };
+
+  $("btnEnviar").onclick = async () => {
+    const faltam = ABERTAS.filter(a => !(resposta[a.id]||"").trim());
+    faltam.forEach(a => $("box_"+a.id).classList.add("erro"));
+    if (faltam.length){
+      erro($("erro2"), "Por favor, responda as perguntas abertas. Se não houver nada a relatar, escreva \"nada a declarar\".");
+      return;
+    }
+    if (Trava.ativa()) return mostrar("telaJa");
+    $("erro2").classList.add("oculto");
+    const btn = $("btnEnviar");
+    btn.disabled = true; btn.textContent = "Enviando...";
+    const r = await API.chamar({ acao: "enviar", resposta });
+    if (r && r.ok){
+      Trava.marcar();
+      mostrar("telaFim");
+    } else {
+      erro($("erro2"), (r && r.erro) || "Não foi possível enviar. Tente novamente.");
+      btn.disabled = false; btn.textContent = "Enviar respostas";
+    }
+  };
+
+  if (Trava.ativa()) mostrar("telaJa");
+})();
+</script>
+</body>
+</html>
